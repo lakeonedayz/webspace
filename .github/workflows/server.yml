@@ -12,30 +12,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Build da imagem Docker
       - name: Build ShellInABox image
         run: docker build -t shellinabox .
 
-      # Rodar o container
       - name: Run ShellInABox container
         run: |
           docker run -d \
             --name shellinabox \
             -p 4200:4200 \
+            -e LOGIN_SEC=${{ secrets.LOGIN_SEC }} \
+            -e SENHA_SEC=${{ secrets.SENHA_SEC }} \
             shellinabox
 
-      # Baixar ngrok (binário)
       - name: Download ngrok
         run: |
           wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
           tar -xzf ngrok-v3-stable-linux-amd64.tgz
           chmod +x ngrok
 
-      # Autenticar ngrok
       - name: Auth ngrok
         run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
-      # Iniciar ngrok
       - name: Start ngrok
         run: |
           ./ngrok http 4200 &
@@ -43,10 +40,7 @@ jobs:
           echo "URL PÚBLICA:"
           curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
 
-      # Manter o job ativo
       - name: Keep job alive
         run: |
-          echo "ShellInABox ativo..."
-          while true; do
-            sleep 60
-          done
+          echo "ShellInABox protegido por login/senha"
+          while true; do sleep 60; done
