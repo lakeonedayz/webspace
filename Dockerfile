@@ -9,10 +9,13 @@ RUN apt-get update && \
       apache2-utils && \
     apt-get clean
 
-# Remover site default
+# Variáveis
+ENV LOGIN_SEC=admin
+ENV SENHA_SEC=admin
+
+# Configuração do NGINX
 RUN rm /etc/nginx/sites-enabled/default
 
-# Config NGINX com Basic Auth
 RUN printf 'server {\n\
     listen 8080;\n\
 \n\
@@ -26,16 +29,9 @@ RUN printf 'server {\n\
     }\n\
 }\n' > /etc/nginx/sites-enabled/shellinabox
 
-# Script de startup
+# Script de inicialização
 RUN printf '#!/bin/bash\n\
-set -e\n\
-\n\
-if [ -z "$LOGIN_SEC" ] || [ -z "$SENHA_SEC" ]; then\n\
-  echo "ERRO: LOGIN_SEC ou SENHA_SEC não definidos"\n\
-  exit 1\n\
-fi\n\
-\n\
-echo "Criando autenticação HTTP..."\n\
+echo "Criando usuário HTTP..."\n\
 htpasswd -bc /etc/nginx/.htpasswd "$LOGIN_SEC" "$SENHA_SEC"\n\
 \n\
 echo "Iniciando ShellInABox..."\n\
