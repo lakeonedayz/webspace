@@ -1,14 +1,16 @@
-FROM ubuntu:22.04
+# Use a base image that supports systemd, for example, Ubuntu
+FROM ubuntu:20.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt update && \
-    apt install -y shellinabox sudo openssh-server && \
-    mkdir /var/run/sshd
-
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
+# Install necessary packages
+RUN apt-get update && \
+    apt-get install -y shellinabox && \
+    apt-get install -y systemd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN echo 'root:root' | chpasswd
+# Expose the web-based terminal port
 EXPOSE 4200
+EXPOSE 22
 
-ENTRYPOINT ["/entrypoint.sh"]
+# Start shellinabox
+CMD ["/usr/bin/shellinaboxd", "-t", "-s", "/:LOGIN"]
