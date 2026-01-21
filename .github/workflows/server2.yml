@@ -1,53 +1,48 @@
-name: Ubuntu Server via Browser (ttyd + ngrok)
+name: ShellInABox + ngrok
 
 on:
   workflow_dispatch:
   push:
 
 jobs:
-  server:
+  shell:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Build Docker image
+        run: docker build -t shellinabox .
+
+      - name: Run container
         run: |
+          docker run -d \
+            --name shellinabox \
+            -p 4200:4200 \
+            -e LOGIN_SEC=${{ secrets.LOGIN_SEC }} \
+            -e SENHA_SEC=${{ secrets.SENHA_SEC }} \
+            shellinabox
+
+
+      - name: Install ngrok
+        run: |
+          curl -fsSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc |
+          sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com jammy main" |
+          sudo tee /etc/apt/sources.list.d/ngrok.list
           sudo apt update
-          sudo apt install -y curl jq
-
-      - name: Download ttyd
-        run: |
-          curl -L https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 -o ttyd
-          chmod +x ttyd
-
-      - name: Download ngrok
-        run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xzf ngrok-v3-stable-linux-amd64.tgz
-          chmod +x ngrok
+          sudo apt install -y ngrok jq
 
       - name: Auth ngrok
-        run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: ngrok config add-authtoken ${{ secrets.NGROK_AUTHTOKEN }}
 
-      - name: Start Web Terminal (ttyd)
-        env:
-          LOGIN_SEC: ${{ secrets.LOGIN_SEC }}
-          SENHA_SEC: ${{ secrets.SENHA_SEC }}
+      - name: Start ngrok
         run: |
-          nohup ./ttyd -p 7681 -c "$LOGIN_SEC:$SENHA_SEC" bash > ttyd.log 2>&1 &
-          sleep 3
-          curl http://127.0.0.1:7681 || (echo "ttyd falhou" && cat ttyd.log && exit 1)
-
-      - name: Start ngrok HTTP
-        run: |
-          ./ngrok http 127.0.0.1:7681 &
+          ngrok http 4200 &
           sleep 5
           echo "TERMINAL WEB:"
           curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
 
-      - name: Keep server alive (6 hours)
-        run: |
-          echo "Terminal ativo por até 6 horas..."
-          sleep 21600
+      - name: Keep alive
+        run: sleep 21600
