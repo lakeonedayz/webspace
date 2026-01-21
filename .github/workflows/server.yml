@@ -1,4 +1,4 @@
-name: ShellInABox via Browser + ngrok
+name: ShellInABox Protegido via Browser + ngrok
 
 on:
   workflow_dispatch:
@@ -9,38 +9,65 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # =============================
+      # Checkout do repositório
+      # =============================
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build ShellInABox image
-        run: docker build -t shellinabox .
+      # =============================
+      # Build da imagem Docker
+      # =============================
+      - name: Build ShellInABox secure image
+        run: |
+          docker build -t shellinabox-secure .
 
+      # =============================
+      # Rodar container com secrets
+      # =============================
       - name: Run ShellInABox container
         run: |
           docker run -d \
             --name shellinabox \
-            -p 4200:4200 \
+            -p 8080:8080 \
             -e LOGIN_SEC=${{ secrets.LOGIN_SEC }} \
             -e SENHA_SEC=${{ secrets.SENHA_SEC }} \
-            shellinabox
+            shellinabox-secure
 
+      # =============================
+      # Download ngrok
+      # =============================
       - name: Download ngrok
         run: |
           wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
           tar -xzf ngrok-v3-stable-linux-amd64.tgz
           chmod +x ngrok
 
+      # =============================
+      # Autenticar ngrok
+      # =============================
       - name: Auth ngrok
-        run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
+      # =============================
+      # Iniciar túnel ngrok
+      # =============================
       - name: Start ngrok
         run: |
-          ./ngrok http 4200 &
+          ./ngrok http 8080 &
           sleep 5
-          echo "URL PÚBLICA:"
+          echo "=============================="
+          echo "URL PÚBLICA DO SHELLINABOX:"
           curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+          echo "=============================="
 
+      # =============================
+      # Manter job ativo
+      # =============================
       - name: Keep job alive
         run: |
-          echo "ShellInABox protegido por login/senha"
-          while true; do sleep 60; done
+          echo "ShellInABox protegido por autenticação HTTP"
+          while true; do
+            sleep 60
+          done
