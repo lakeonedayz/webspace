@@ -1,43 +1,48 @@
-name: ShellInABox + ngrok
+name: Build and Run Shellinabox
 
-on:
-  workflow_dispatch:
-  push:
+on: [push]
 
 jobs:
-  shell:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Build Docker image
-        run: docker build -t shellinabox .
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
 
-      - name: Run container
-        run: |
-          docker run -d \
-            --name shellinabox \
-            -p 4200:4200 \
-            -e LOGIN_SEC=${{ secrets.LOGIN_SEC }} \
-            -e SENHA_SEC=${{ secrets.SENHA_SEC }} \
-            shellinabox
+    - name: Cache Docker layers
+      uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
 
-      - name: Download ngrok
-        run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xzf ngrok-v3-stable-linux-amd64.tgz
-          chmod +x ngrok
+    - name: Build Docker image
+      run: docker build -t shellinabox .
 
-      - name: Auth ngrok
-        run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Run Docker container
+      run: docker run -d --name shellinabox -p 4200:4200 shellinabox
 
-      - name: Start ngrok
-        run: |
-          ./ngrok http 4200 &
-          sleep 5
-          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+    - name: Download ngrok
+      run: |
+        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+        tar -xzf ngrok-v3-stable-linux-amd64.tgz
+        chmod +x ngrok
 
-      - name: Keep alive
-        run: sleep 21600
+    - name: Auth ngrok
+      run: ./ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+    - name: Start ngrok
+      run: ngrok http 4200 &
+
+    - name: Display ngrok URL
+      run: curl --silent --show-error http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+
+    - name: Keep the job running
+      run: |
+        while true; do
+          sleep 60
+        done
